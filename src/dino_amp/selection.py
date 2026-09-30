@@ -22,6 +22,38 @@ exactly left FBD at 5.11.
 So selection does not rank. It matches: pick reference sequences that span the
 distribution, and for each one take the candidate that resembles it most.
 
+## Where matching helps, and where it does not
+
+This is the part that took a failed experiment to learn. Matching helps the
+top-100 and **hurts the library**, and the difference is the baseline:
+
+| | Baseline being replaced | Result |
+|---|---|---|
+| top-100 | a subset picked by score, so *biased* | FBD 2.61 → 1.79 |
+| library | all 50,000 sampled, so *unbiased* | FBD 0.2104 → 0.3573 |
+
+Measured at library scale — 250,000 candidates, each of the 39,448 reference
+sequences claiming its closest — every headline metric moved the wrong way:
+
+    FBD       0.2104 -> 0.3573     MMD        0.3072 -> 0.8285
+    Recall    0.9160 -> 0.8735     Diversity  0.8570 -> 0.8404
+
+Charge (2.10 -> 3.10, reference 2.93) and coverage (0.75 -> 0.83) did improve, and
+it was not enough. Amphipathicity overshot the reference (0.408 against 0.368),
+which is the signature: the selection matched the reference's property
+distribution more tightly than a real sample of it would, and paid for that in
+embedding-space spread.
+
+The reason is that an unbiased sample is already the best available estimate of
+the generator's distribution. Choosing a subset of it can only discard
+information. So `select_library` exists but **the pipeline does not use it for the
+submitted library** — see `cli.py`. It is kept because it is the right tool the
+moment the candidate pool stops being an unbiased sample, and because removing it
+would delete the evidence for why the library is submitted unselected.
+
+The remaining gap — library FBD 0.2104 against 0.0613 for a fresh sample of real
+AMPs — is the generator's, not the selector's. Selection cannot close it.
+
 ## Why properties rather than a language model
 
 The entry point must run with no network access, on the CPU, and produce

@@ -20,8 +20,8 @@ in the repository.
 
 It is slow on purpose: generation is pinned to a single CPU thread because
 multi-threaded and GPU reductions are not order-stable, and the challenge asks
-for identical output on a repeated run. Expect a few hours, dominated by
-sampling.
+for identical output on a repeated run. Expect roughly an hour, almost all of it
+sampling at the measured 15.3 sequences per second.
 
 ```bash
 uv run pytest            # includes a check against the scoring stack's own descriptors
@@ -32,14 +32,18 @@ uv run pytest            # includes a check against the scoring stack's own desc
 | Step | What happens |
 |---|---|
 | 1 | Read the organizers' 39,448-sequence reference set and the MarLys exclusion list |
-| 2 | Sample 250,000 candidates from the frozen checkpoint, left to right, on the CPU |
+| 2 | Sample 50,000 candidates from the frozen checkpoint, left to right, on the CPU |
 | 3 | Keep what meets the mandatory requirements: canonical residues, length 8–50, no exact reference match |
-| 4 | Select 50,000 so that their property distribution tracks the reference set |
+| 4 | Take the sample as the library, **unselected** — matching it to the reference made every metric worse |
 | 5 | Apply our synthesis screens to form the top-100 candidate pool |
 | 6 | Select and order 100, one per mode of the reference distribution, inside both similarity gates |
 
-Step 2 deliberately samples five times the library size. Selection needs a
-surplus to choose from; without it, step 4 has nothing to do.
+Step 4 is the surprising one. Distribution-matching the library against the
+reference set was tried and made every headline metric worse — FBD 0.2104 to
+0.3573, MMD 0.3072 to 0.8285. An unbiased sample is already the best estimate of
+the generator's distribution, so choosing a subset of it only discards
+information. Matching still wins for the top-100, where the baseline it replaces
+was a score-ranked and therefore biased subset.
 
 ## The one idea worth knowing
 

@@ -3,9 +3,10 @@
 ## Summary
 
 A character-level autoregressive transformer, trained only on the training
-partition of the organizers' corpus, samples 250,000 candidate peptides. A
-distribution-matching selector reduces those to the submitted 50,000-member
-library, and then to an ordered top-100 inside the challenge's similarity gates.
+partition of the organizers' corpus, samples the 50,000-member library. A
+distribution-matching selector then picks and orders the top-100 from it, inside
+the challenge's similarity gates. The library itself is submitted unselected —
+matching it to the reference distribution was tried and measurably hurt.
 Generation is pinned to a single CPU thread with a fixed seed, so a repeated run
 reproduces the files byte for byte.
 
@@ -76,23 +77,50 @@ do better than that, so the headline number 1.79 is at the floor, and comparing 
 100-sequence FBD against a 50,000-sequence FBD — 1.79 against 0.21 — is
 meaningless. We made that mistake first.
 
-## Selection, concretely
+## Where matching helps and where it does not
 
-Both stages use the same feature space: net charge at pH 7, length,
-amphipathicity, mean hydrophobicity, and the twenty residue fractions. Both
-standardise by the reference set's own spread, because the reference is the
-yardstick.
+Matching the reference distribution wins for the top-100 and **loses for the
+library**. The difference is what the baseline was.
 
-**Library (50,000 from 250,000).** Each reference sequence claims its nearest
-unclaimed candidate; with more slots than reference sequences, the remainder goes
-to unclaimed candidates closest to any reference. Reference order is shuffled
-from a fixed seed so the result does not depend on the input file's order.
+| Stage | Baseline being replaced | Outcome |
+|---|---|---|
+| top-100 | a subset picked by score, so biased | FBD 2.61 -> 1.79 |
+| library | all 50,000 sampled, so unbiased | FBD 0.2104 -> **0.3573** |
 
-**Top-100.** The reference set is split into 100 clusters. Each cluster's
-medoid — a real reference sequence, never an average — takes the closest candidate
-that clears both gates. Larger clusters are served first. The list is ordered by
-ascending distance to the matched exemplar, so the candidates we are most
-confident about come first.
+Measured at library scale, with 250,000 candidates and each of the 39,448
+reference sequences claiming its closest:
+
+    FBD       0.2104 -> 0.3573     MMD        0.3072 -> 0.8285
+    Recall    0.9160 -> 0.8735     Diversity  0.8570 -> 0.8404
+    charge     2.096 -> 3.097      Coverage    0.750 -> 0.835
+
+Charge (reference 2.927) and coverage improved and it was not enough.
+Amphipathicity overshot the reference — 0.408 against 0.368 — which is the
+signature of the failure: the selection tracked the reference's *property*
+distribution more tightly than a real sample of it would, and paid for that in
+embedding-space spread.
+
+An unbiased sample is already the best available estimate of the generator's
+distribution, so choosing a subset of it can only discard information. The
+library is therefore the sample itself, in sampling order, and the remaining gap —
+library FBD 0.2104 against 0.0613 for a fresh draw of real AMPs — belongs to the
+generator, not the selector.
+
+`select_library` stays in the codebase, unused by the pipeline. It is the right
+tool the moment the candidate pool stops being an unbiased sample, and deleting it
+would delete the evidence for this decision.
+
+## Top-100 selection, concretely
+
+The feature space is net charge at pH 7, length, amphipathicity, mean
+hydrophobicity, and the twenty residue fractions, standardised by the reference
+set's own spread because the reference is the yardstick.
+
+The reference set is split into 100 clusters. Each cluster's medoid — a real
+reference sequence, never an average — takes the closest candidate that clears both
+gates. Larger clusters are served first, so an interrupted run still covers the
+dominant modes. The list is ordered by ascending distance to the matched exemplar,
+so the candidates we are most confident about come first.
 
 That ordering is deliberate: the organizers' main text and FAQ disagree about
 whether the experimental draw comes from the top 100 or the top 50, so the order
@@ -102,7 +130,7 @@ is kept meaningful rather than arbitrary.
 
 ESM2 would be the natural feature space and we cannot use it. The entry point
 must run without network access, on the CPU, and produce identical output when
-repeated; a 650M-parameter model satisfies none of those, and embedding 250,000
+repeated; a 650M-parameter model satisfies none of those, and embedding 50,000
 sequences on a CPU is not a few minutes' work.
 
 So the split is explicit: **selection uses CPU properties, evaluation uses ESM2.**

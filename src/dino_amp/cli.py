@@ -11,13 +11,20 @@ The pipeline:
     1. read the organizers' reference set and the MarLys exclusion list
     2. sample candidates from the frozen checkpoint (CPU, single thread)
     3. keep only what meets the mandatory sequence requirements
-    4. select the library so its property distribution tracks the reference
+    4. take the first 50,000 as the library, **unselected**
     5. apply our synthesis screens to build the top-100 candidate pool
     6. select and order the top-100, one per reference mode, inside both gates
 
-Step 4 is why more candidates are sampled than the library needs: selection
-needs a surplus to choose from. Step 5 is applied to the top-100 only — the
-library is submitted unscreened, for the reason given in ``screens.py``.
+Step 4 is deliberately not a selection, and that is a measured decision rather
+than a shortcut. Distribution-matching the library against the reference set was
+tried and made every headline metric worse (FBD 0.2104 -> 0.3573, MMD 0.3072 ->
+0.8285); an unbiased sample is already the best estimate of the generator's
+distribution, so choosing a subset of it only discards information. The reasoning
+is in ``selection.py``.
+
+The library is also submitted **unscreened**: the synthesis screens in step 5
+apply only to the 100 sequences that would actually be synthesised, for the reason
+given in ``screens.py``.
 """
 
 from __future__ import annotations
@@ -42,7 +49,11 @@ DEFAULT_OUTPUT = PACKAGE_ROOT / "output"
 
 LIBRARY_SIZE = 50_000
 TOP_SIZE = 100
-CANDIDATE_MULTIPLE = 5           # sample 5x the library size, then select
+# The library is the sample itself, so one library's worth is all that is needed.
+# The sampler already adds internal headroom for duplicates and exclusions. Raising
+# this only costs time: at the measured 15.3 sequences/second on one CPU thread,
+# every extra 50,000 candidates is another 55 minutes for no measured gain.
+CANDIDATE_MULTIPLE = 1
 MINIMUM_EXCLUSIONS = 100_000     # guards against a truncated exclusion file
 
 
@@ -131,7 +142,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     log(f"generator {model.parameter_count:,} parameters · CPU, {sampling.THREADS} thread")
 
     wanted = args.library_size * args.candidate_multiple
-    log(f"sampling {wanted:,} candidates (this is the slow step)")
+    log(f"sampling {wanted:,} candidates (this is the slow step, "
+        f"roughly {wanted / 15.3 / 60:.0f} minutes at the measured rate)")
     raw = sampling.sample(
         model,
         count=wanted,
@@ -146,11 +158,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     candidates, counts = screen_library(raw, excluded=excluded)
     log(f"sampled {len(raw):,} → meet requirements {len(candidates):,} {counts}")
 
-    chosen = selection.select_library(
-        candidates, reference, size=args.library_size, seed=args.selection_seed
-    )
-    log(chosen.describe())
-    library = list(chosen.sequences)
+    # The library is the sample itself, in sampling order. Not a selection —
+    # see the module docstring and selection.py for the measurement that settled
+    # this. The top-100 pool is then drawn from the library, because the challenge
+    # asks for a ranked subset of the submitted library rather than a separate set.
+    library = candidates[: args.library_size]
+    log(f"library {len(library):,} taken unselected from {len(candidates):,} candidates")
 
     top_pool = [s for s in library if not violates_synthesis_screens(s, cysteine_limit=0)]
     log(f"top-100 pool after synthesis screens: {len(top_pool):,} of {len(library):,}")
