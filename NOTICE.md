@@ -48,6 +48,14 @@ installing this repository does not pull in copyleft terms:
   Its three descriptors are reimplemented in `properties.py`. `modlamp` remains
   a development-only dependency, used solely to test that agreement.
 
+## What the MIT licence covers
+
+`LICENSE` holds the MIT licence text and nothing else, so that GitHub and
+automated compliance checks identify it. What it covers is stated here instead:
+the first-party source code in `src/` and `tests/`, and the trained generator
+checkpoint in `weights/`. It does **not** relicense the third-party data
+redistributed in `data/` — those keep the terms recorded above.
+
 ## Scope of these notices
 
 These notices record the sources and terms we verified. They are not a legal
