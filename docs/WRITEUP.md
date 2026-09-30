@@ -1,6 +1,8 @@
 # Dino — AMP Challenge 2027 submission
 
-**Team Dino** · [github.com/impala9397-hub/amp-challenge-dino](https://github.com/impala9397-hub/amp-challenge-dino)
+**Team Dino** — Jongwon Im, Hannah Kim, Linda Chen
+
+[github.com/impala9397-hub/amp-challenge-dino](https://github.com/impala9397-hub/amp-challenge-dino)
 
 ## Abstract
 
