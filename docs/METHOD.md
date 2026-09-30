@@ -126,6 +126,57 @@ That ordering is deliberate: the organizers' main text and FAQ disagree about
 whether the experimental draw comes from the top 100 or the top 50, so the order
 is kept meaningful rather than arbitrary.
 
+### The exemplar spread, and why a medoid needs one
+
+A medoid is a cluster's centre, so a set of 100 medoids is narrower than the
+reference it was drawn from. Measured against all 39,448 reference sequences:
+
+| Standard deviation | Reference | 100 medoids | Ratio |
+|---|---:|---:|---:|
+| Net charge | 3.284 | 2.836 | 0.86 |
+| Length | 8.856 | 7.459 | 0.84 |
+| Amphipathicity | 0.199 | 0.163 | 0.82 |
+| Hydrophobicity | 0.381 | 0.342 | 0.90 |
+
+The *means* survive — every one lands within 0.11 standard deviations of the
+reference's, because k-means subdivides dense regions and so places more
+clusters where the reference is thick. It is the tails that thin: the charge
+distribution's `<= 0` bin falls from 18.9% to 15.0% and its `8+` bin from 4.7%
+to 2.0%. FBD compares covariances as well as means, so this costs us.
+
+Features are standardised by the reference's own mean, which puts the reference
+centroid at the origin. Multiplying an exemplar by `DEFAULT_EXEMPLAR_SPREAD`
+therefore pushes it outward along its own direction: the target set regains its
+spread while each target still points into a region dense enough to hold
+candidates near it. `1 / 0.86 = 1.16` is the predicted correction.
+
+We first tried the obvious repairs — replacing each medoid with a random
+reference sequence, and with a random member of its own cluster. Both made every
+metric worse (FBD 1.78 to 2.12 and 2.09). A random reference sequence can be an
+outlier with no candidate near it, so those variants bought spread with match
+quality. Scaling the exemplar buys spread with neither.
+
+Measured on the submitted candidate pool, both arms in one run, with the metrics
+that vary with sampling averaged over five measurement seeds:
+
+| | FBD ↓ | MMD ↓ | Recall ↑ | Coverage ↑ | Precision | Diversity |
+|---|---:|---:|---:|---:|---:|---:|
+| Exemplar spread 1.00 | 1.7832 | 1.2339 | 0.814 | **1.000** | 0.940 | 0.840 |
+| **Exemplar spread 1.16** | **1.7106** | **0.9490** | **0.858** | 0.974 | 0.930 | **0.847** |
+| | +4.1% | +23.1% | +5.4% | −2.6% | | |
+
+Across five independent k-means seeds the correction improves FBD every time,
+by 3.9% to 9.2%; across five measurement seeds it improves MMD and Recall every
+time.
+
+**It is not free.** ClippedCoverage is saturated at 1.000 and can only fall, and
+it falls 2.6%. We took the trade on two grounds: three of the four distributional
+metrics improve robustly and substantially, and the resulting 0.974 still sits
+above the 0.95 that 100 real antimicrobial peptides average on the same metric —
+so the selection is not dropping below what the reference itself achieves. The
+axis weights are withheld, so this is a judgement, not a calculation, and the
+numbers above are here so a reader can disagree with it.
+
 ## Why properties and not a protein language model
 
 ESM2 would be the natural feature space and we cannot use it. The entry point

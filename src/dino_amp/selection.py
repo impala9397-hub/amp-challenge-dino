@@ -79,6 +79,27 @@ DEFAULT_PAIRWISE_CEILING = 0.70
 DEFAULT_NEIGHBOURS = 12
 DEFAULT_CHUNK = 400
 
+# A medoid sits at the centre of its cluster, so a set of 100 medoids is
+# narrower than the reference it was drawn from. Measured against the 39,448
+# reference sequences, the medoids' spread is 0.82-0.90x of the reference's:
+# net charge 2.836 against 3.284, length 7.459 against 8.856, amphipathicity
+# 0.163 against 0.199. Both tails of the charge distribution are thinned
+# (<=0 drops 18.9% -> 15.0%, 8+ drops 4.7% -> 2.0%). FBD compares covariances
+# as well as means, so that shrinkage costs us.
+#
+# Features are standardised by the reference's own mean, so the reference
+# centroid is the origin and scaling an exemplar by this factor pushes it
+# outward along its own direction. The target set regains its spread while
+# each target still points into a dense region that has candidates near it —
+# which is why this works where replacing the medoid with a random reference
+# sequence did not. 1/0.86 = 1.16 is the predicted correction, and measurement
+# agrees: across five k-means seeds it improves FBD every time (+3.9% to
+# +9.2%), and across five measurement seeds it improves MMD and Recall every
+# time. It costs 2.6% of ClippedCoverage, which is saturated at 1.000 and can
+# only fall; the resulting 0.974 still sits above the 0.95 that 100 real
+# antimicrobial peptides average. See METHOD.md.
+DEFAULT_EXEMPLAR_SPREAD = 1.16
+
 
 @dataclass(frozen=True)
 class LibrarySelection:
@@ -222,6 +243,7 @@ def select_top(
     reference_ceiling: float = DEFAULT_REFERENCE_CEILING,
     reference_margin: float = DEFAULT_REFERENCE_MARGIN,
     pairwise_ceiling: float = DEFAULT_PAIRWISE_CEILING,
+    exemplar_spread: float = DEFAULT_EXEMPLAR_SPREAD,
     search_width: int = 600,
 ) -> TopSelection:
     """Pick and order ``size`` sequences, one per mode of the reference set.
@@ -230,6 +252,10 @@ def select_top(
     real reference sequence, not an average — gets the closest candidate that
     clears both gates. Larger clusters are served first, so an interrupted run
     still covers the dominant modes.
+
+    Each medoid is first pushed away from the reference centroid by
+    ``exemplar_spread``, which restores the spread that taking cluster centres
+    costs; ``1.0`` disables it. The constant's definition explains why.
 
     The returned order is by ascending distance to the matched exemplar: the
     candidates we are most confident resemble a known antimicrobial peptide come
@@ -263,7 +289,8 @@ def select_top(
     for _, medoid in order:
         if len(picked) >= size:
             break
-        distances = np.linalg.norm(pool_z - reference_z[medoid], axis=1)
+        target = reference_z[medoid] * exemplar_spread
+        distances = np.linalg.norm(pool_z - target, axis=1)
         for index in np.argsort(distances)[:search_width]:
             sequence = candidates[index]
             if sequence in taken:
