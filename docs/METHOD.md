@@ -26,16 +26,31 @@ has been performed on them.
 | Checkpoint | Epoch 14 of the official-only training run, frozen |
 
 The training corpus is the organizers' `antibacterial.fasta`: 39,448 sequences,
-split 37,935 train / 1,513 validation. **The corpus size is not the training set
-size**, and this repository does not describe it as 39,448 training examples.
+split 37,940 train / 1,508 validation by sha256 bucket, with any validation
+candidate more than 0.8 similar to a training sequence moved back into training.
+**The corpus size is not the training set size**, and this repository does not
+describe it as 39,448 training examples.
 
 Development compared model sizes, an official-only run against data-expansion
 alternatives including AMPSphere subsets, and staged training. Those expansion
-corpora were **not** used for the released checkpoint. Later work compared
-autoregressive training through 32 epochs, length-conditioned autoregressive
-through 50, and masked diffusion through 100, across three training seeds each;
-none of it justified replacing epoch 14. The epoch was chosen on distribution
-measurements and a second generation seed, not on validation loss alone.
+corpora were **not** used for the released checkpoint. Size is worth a number,
+because the obvious objection to a 4.8M-parameter generator is that it is too
+small: an ESM2-35M-based generator, seven times larger, measured FBD 3.442 where
+this one measures 0.578 on the same development reference. Parameter count is not
+what limits this submission. Later work compared autoregressive training through
+32 epochs, length-conditioned autoregressive through 50, and masked diffusion
+through 100, across three training seeds each; none of it justified replacing
+epoch 14. The epoch was chosen on distribution measurements and a second
+generation seed, not on validation loss alone.
+
+Sampling temperature is 1.0 and that is also measured rather than assumed. The
+model was trained by maximum likelihood, so temperature 1.0 reproduces the
+distribution it learned; sharpening or flattening can only move away from it.
+Measured on the library's FBD against the 39,448-sequence reference:
+
+| Temperature | 0.90 | 0.95 | **1.00** | 1.05 | 1.10 |
+|---|---:|---:|---:|---:|---:|
+| Library FBD ↓ | 0.3276 | 0.3947 | **0.2104** | 0.6775 | 0.8545 |
 
 Multiple generation seeds are not independent retraining, and performance on
 development references does not establish generalization. Performance after
