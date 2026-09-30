@@ -1,0 +1,55 @@
+[project]
+name = "dino-amp"
+version = "1.0.0"
+description = "Autoregressive peptide generation for the AMP Challenge 2027 (team Dino)"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jongwon Im" }]
+keywords = ["antimicrobial-peptides", "generative-models", "transformer"]
+
+# Runtime dependencies are deliberately few. Two packages carry the whole
+# generation path, both permissive:
+#   torch      BSD-3-Clause  — the generator
+#   numpy      BSD-3-Clause  — properties and selection
+#   rapidfuzz  MIT           — Levenshtein ratio (a pure-Python fallback ships
+#                              in similarity.py, so this is a speed dependency)
+#
+# Not used, on purpose:
+#   python-Levenshtein  GPL-2.0-or-later — replaced by rapidfuzz plus our own
+#                       implementation; tests pin the two to each other
+#   modlamp             BSD-3 itself, but depends on mysql-connector-python
+#                       (GPL-2.0); its three descriptors are reimplemented in
+#                       properties.py and tested for exact agreement
+dependencies = [
+  "numpy>=2.0,<3",
+  "torch>=2.4,<3",
+  "rapidfuzz>=3.9,<4",
+]
+
+[project.scripts]
+generate = "dino_amp.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/impala9397-hub/amp-challenge-dino"
+
+[dependency-groups]
+# Development only. `modlamp` is present so the property tests can compare
+# against the implementation the challenge's scoring stack uses; it is never
+# imported by the package itself and is not needed to run `generate`.
+dev = [
+  "pytest>=8.0,<9",
+  "modlamp>=4.3,<5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dino_amp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
