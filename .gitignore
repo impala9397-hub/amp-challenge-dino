@@ -1,5 +1,4 @@
 generate/
-output/
 .venv/
 __pycache__/
 *.pyc

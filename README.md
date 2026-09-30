@@ -13,19 +13,28 @@ antimicrobial peptides, and a distribution-matching selector picks the ordered
 uv run generate
 ```
 
-That writes `output/library.fasta` (50,000 sequences), `output/top.fasta` (the
-ordered 100) and `output/report.json`. Every argument has a default, the seed is
-fixed, and nothing reaches the network — the checkpoint and both data files ship
-in the repository.
+That writes `generate/library.fasta` (50,000 sequences), `generate/top.fasta`
+(the ordered 100) and `generate/report.json`. The directory name is not a
+preference: the organizers' `verify_submission.py` looks for exactly those two
+paths. Every argument has a default, the seed is fixed, and nothing reaches the
+network — the checkpoint and both data files ship in the repository.
 
 It is slow on purpose: generation is pinned to a single CPU thread because
 multi-threaded and GPU reductions are not order-stable, and the challenge asks
 for identical output on a repeated run. Expect roughly an hour, almost all of it
-sampling at the measured 15.3 sequences per second.
+sampling at the measured 15.3 sequences per second — 54.8 minutes on the machine
+that produced the submitted files.
 
 ```bash
-uv run pytest            # includes a check against the scoring stack's own descriptors
+uv run --group dev pytest
 ```
+
+56 tests, including a check of every property implementation against the scoring
+stack's own descriptors. The `--group dev` is required: `pyproject.toml` sets
+`default-groups = []`, so a bare `uv sync` installs the three runtime
+dependencies and nothing else. That keeps `modlamp` — and the GPL-2.0
+`mysql-connector-python` it pulls in — out of the environment the organizers
+install to run `generate`, while still letting us test against it.
 
 ## What the pipeline does
 
@@ -57,8 +66,9 @@ set, selecting 100 sequences:
 |---|---|---|---|---|
 | Reward closeness to the reference centroid | 5.11 | 11.58 | 1.00 | **0.11** |
 | One pick per reference mode | 1.90 | 2.00 | 0.99 | 0.72 |
-| **Match each mode's exemplar 1:1** | **1.79** | **1.08** | 0.96 | **0.75** |
-| *For scale:* 100 real AMPs drawn at random | 1.71 | 1.15 | 0.95 | 0.91 |
+| Match each mode's exemplar 1:1 | 1.78 | 1.23 | 0.94 | 0.81 |
+| **The same, with the exemplar spread applied** | **1.71** | **0.95** | 0.93 | **0.86** |
+| *For scale:* 100 real AMPs drawn at random | 1.56–1.71 | 0.60–1.45 | 0.91–0.95 | 0.90–0.94 |
 
 `Precision 1.00` with `Recall 0.11` is the tell: every pick landed inside the
 reference distribution, and together they covered a sliver of it. FBD compares
@@ -67,9 +77,13 @@ lines up — matching the reference charge distribution exactly still left FBD a
 5.11.
 
 So selection does not rank. It matches: take reference sequences that span the
-distribution, and for each one keep the candidate that resembles it most.
+distribution, and for each one keep the candidate that resembles it most. The
+last row of that table is the same rule with one correction — a cluster medoid
+sits at its cluster's centre, so a set of 100 medoids is 14% narrower than the
+reference, and each one is pushed back outward before it claims a candidate.
 
 Details, including the failures that led here, are in [docs/METHOD.md](docs/METHOD.md).
+The submission write-up is [docs/WRITEUP.md](docs/WRITEUP.md).
 
 ## Repository layout
 
@@ -83,10 +97,16 @@ src/dino_amp/
   similarity.py   Levenshtein ratio and the reference index
   screens.py      mandatory requirements vs our synthesis screens
   selection.py    library and top-100 selection
+tests/            56 tests, including the organizers' submission contract
 data/             organizers' reference set (BSD-3), MarLys exclusions (CC0)
 weights/          the frozen generator checkpoint
-docs/             method and write-up
+docs/             METHOD.md (why this design) and WRITEUP.md (the submission)
+licenses/         the redistributed data's own licences
+NOTICE.md         data provenance and training-data disclosure
 ```
+
+`generate/` is not tracked. It is what `uv run generate` produces, and the
+organizers produce it themselves by running this repository.
 
 ## Licensing
 
