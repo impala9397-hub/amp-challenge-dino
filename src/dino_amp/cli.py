@@ -2,8 +2,9 @@
 
     uv run generate
 
-writes ``output/library.fasta`` (50,000 sequences), ``output/top.fasta`` (the
-ordered 100) and ``output/report.json``. Every argument has a default, the seed
+writes ``generate/library.fasta`` (50,000 sequences), ``generate/top.fasta`` (the
+ordered 100) and ``generate/report.json``. The directory name is fixed by the
+organizers' verifier, which looks for exactly those two paths. Every argument has a default, the seed
 is fixed, nothing reaches the network, and a repeat run produces identical files.
 
 The pipeline:
@@ -45,7 +46,10 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WEIGHTS = PACKAGE_ROOT / "weights/generator.pt"
 DEFAULT_REFERENCE = PACKAGE_ROOT / "data/antibacterial.fasta"
 DEFAULT_EXCLUSIONS = PACKAGE_ROOT / "data/marlys-v3-sequences.txt.gz"
-DEFAULT_OUTPUT = PACKAGE_ROOT / "output"
+# The organizers' verify_submission.py hard-codes ENTRY_POINT = "generate" and
+# looks for <repo>/generate/library.fasta and <repo>/generate/top.fasta. Writing
+# anywhere else fails verification at step [4], so this name is not a preference.
+DEFAULT_OUTPUT = PACKAGE_ROOT / "generate"
 
 LIBRARY_SIZE = 50_000
 TOP_SIZE = 100
@@ -196,11 +200,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "candidates_sampled": len(raw),
         "candidates_after_requirements": len(candidates),
         "screen_counts": counts,
-        "library_selection": {
-            "matched_one_to_one": chosen.matched_one_to_one,
-            "filled_from_remainder": chosen.filled_from_remainder,
-            "references_without_free_candidate": chosen.references_without_free_candidate,
-        },
+        "library_selection": "none — the library is the sample in sampling order",
         "top_pool_size": len(top_pool),
         "max_reference_similarity": top.max_reference_similarity,
         "rejected_by_reference": top.rejected_by_reference,

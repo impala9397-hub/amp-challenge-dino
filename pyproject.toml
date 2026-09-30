@@ -43,6 +43,14 @@ dev = [
   "modlamp>=4.3,<5",
 ]
 
+[tool.uv]
+# The organizers' verifier runs a bare `uv sync`, and uv includes the `dev` group
+# by default. That would install modlamp — which pulls GPL-2.0
+# mysql-connector-python — into an environment that only needs to run `generate`.
+# Emptying the default groups keeps their clean clone to the three runtime
+# dependencies. Development uses `uv sync --group dev`.
+default-groups = []
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
