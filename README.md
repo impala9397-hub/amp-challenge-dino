@@ -1,5 +1,8 @@
 # Dino — autoregressive peptide generation for the AMP Challenge 2027
 
+**Team Dino** — Jongwon Im, Hannah Kim, Linda Chen ·
+contact **impala9397@gmail.com**
+
 A 4.8M-parameter character-level transformer proposes 50,000 candidate
 antimicrobial peptides, and a distribution-matching selector picks the ordered
 100 that would go to the bench.
@@ -107,6 +110,19 @@ NOTICE.md         data provenance and training-data disclosure
 
 `generate/` is not tracked. It is what `uv run generate` produces, and the
 organizers produce it themselves by running this repository.
+
+## Contact
+
+**Team Dino** — Jongwon Im (team lead), Hannah Kim, Linda Chen.
+Kaggle team `Dino`, writeup *Matching the distribution instead of ranking it*.
+
+Reach us at **impala9397@gmail.com**, or open an issue on this repository.
+
+Organizers: this is the surest way to reach us. Kaggle's "share your email with
+the host" setting on the team page accepts the change and returns success, but
+does not persist it — verified three times after the competition closed — so we
+cannot rely on it to receive the compliance notice or the 72-hour window to
+resolve issues.
 
 ## Licensing
 
